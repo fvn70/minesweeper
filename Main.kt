@@ -8,18 +8,19 @@ class MineField(val rows: Int, val cols: Int, val n: Int) {
     val marks = List(rows) { MutableList(cols) { false } }
     var find = 0
     var stars = 0
-        init {
-            var cnt = 0
-            while (cnt < n) {
-                val r = Random.nextInt(rows)
-                val c = Random.nextInt(cols)
-                if (arr[r][c] != 'X') {
-                    arr[r][c] = 'X'
-                    cnt++
-                }
+
+    fun setMines(r0: Int, c0: Int) {
+        var cnt = 0
+        while (cnt < n) {
+            val r = Random.nextInt(rows)
+            val c = Random.nextInt(cols)
+            if (r != r0 || c != c0 && arr[r][c] != 'X') {
+                arr[r][c] = 'X'
+                cnt++
             }
-            cntMines()
         }
+        cntMines()
+    }
 
     fun cntMines() {
         for (i in 0 until rows) {
@@ -46,13 +47,13 @@ class MineField(val rows: Int, val cols: Int, val n: Int) {
         return cnt
     }
 
-    fun draw() {
+    fun draw(showMine: Boolean) {
         println("\n │123456789│")
         println("—│—————————│")
         for (i in 0 until rows) {
             print("${i + 1}│")
             for (j in 0 until cols) {
-                print(if (marks[i][j]) '*' else if (arr[i][j] == 'X') '.' else arr[i][j])
+                print(if (marks[i][j]) '*' else if (arr[i][j] == 'X' && !showMine) '.' else arr[i][j])
             }
             println("│")
         }
@@ -73,13 +74,57 @@ class MineField(val rows: Int, val cols: Int, val n: Int) {
         return true
     }
 
+    fun freeCell(r: Int, c: Int) {
+        if (arr[r][c] in "./" && cntNeighbors(r, c) == 0) {
+            arr[r][c] = '/'
+            for (i in r - 1..r + 1)
+                for (j in c - 1..c + 1) {
+                    if (i in 0..rows-1 && j in 0..cols-1
+                        && (arr[i][j] == '.' || marks[i][j])) {
+                        if (arr[i][j] == '.') {
+                            arr[i][j] = '/'
+                        }
+                        if (marks[i][j]) {
+                            marks[i][j] = false
+                            stars--
+                        }
+                        freeCell(i, j)
+                    }
+                }
+        } else {
+            if (marks[r][c]) {
+                marks[r][c] = false
+                stars--
+            }
+        }
+    }
+
     fun game() {
-        draw()
+        var startGame = true
+        var openMines = false
+        draw(openMines)
         while (true) {
-            print("Set/delete mines marks (x and y coordinates): ")
-            val (x, y) = readLine()!!.split(" ").map { it.toInt() }
-            if (!setMark(y - 1, x - 1)) continue
-            draw()
+            print("Set/unset mines marks or claim a cell as free: ")
+            val (x, y, cmd) = readLine()!!.split(" ")
+            val row = y.toInt() - 1
+            val col = x.toInt() - 1
+            when (cmd) {
+                "mine", "m" -> {
+                    setMark(row, col)
+                }
+                "free", "f" -> {
+                    if (startGame) setMines(row, col)
+                    startGame = false
+                    if (arr[row][col] == 'X') {
+                        openMines = true
+                        draw(openMines)
+                        println("You stepped on a mine and failed!")
+                        break
+                    }
+                    freeCell(row, col)
+                }
+            }
+            draw(openMines)
             if (find == n && stars == n) {
                 println("Congratulations! You found all the mines!")
                 break
